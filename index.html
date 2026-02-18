@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nasro VIP - Pro Plus</title>
+    <title>Nasro VIP - Real Calls Fixed</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -25,7 +25,7 @@
         
         .header { background: var(--bg-glass); padding: 15px; display: flex; justify-content: space-between; align-items: center; z-index: 10; border-bottom: 1px solid rgba(255,255,255,0.1); }
         .header-title { text-align: center; flex: 1; }
-        #typing-status { font-size: 13px; color: #adff2f; font-weight: bold; }
+        #typing-status { font-size: 13px; color: #adff2f; font-weight: bold; height: 18px; }
 
         #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; z-index: 2; }
         .bubble { padding: 12px 18px; border-radius: 20px; max-width: 80%; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.4); line-height: 1.5; background: #fff; color: #000; }
@@ -42,14 +42,18 @@
 
         #sendBtn, #recBtn { background: var(--p-dark); color: white; width: 45px; height: 45px; border-radius: 50%; border: none; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         #recBtn.recording { background: #adff2f; animation: pulse 1s infinite; }
-
         @keyframes pulse { 0% {transform: scale(1);} 50% {transform: scale(1.1);} 100% {transform: scale(1);} }
 
-        /* واجهة المكالمة */
-        #call-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        .call-btn { width: 70px; height: 70px; border-radius: 50%; border: none; margin: 20px; font-size: 30px; cursor: pointer; }
-        .end-call { background: #ff3b30; color: white; }
-        .accept-call { background: #4cd964; color: white; }
+        /* واجهة المكالمة المصلحة */
+        #call-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
+        #video-container { width: 100%; height: 100%; position: relative; display: flex; flex-direction: column; }
+        video { width: 100%; height: 100%; object-fit: cover; background: #222; }
+        #localVideo { width: 120px; height: 160px; position: absolute; top: 20px; right: 20px; border: 2px solid #fff; border-radius: 10px; z-index: 1010; transform: scaleX(-1); }
+        #remoteVideo { flex: 1; width: 100%; height: 100%; background: #111; }
+        
+        .call-ui-overlay { position: absolute; bottom: 50px; width: 100%; display: flex; justify-content: center; gap: 30px; z-index: 1020; }
+        .c-btn { width: 70px; height: 70px; border-radius: 50%; border: none; font-size: 30px; cursor: pointer; color: white; }
+        .v-accept { background: #4cd964; } .v-decline { background: #ff3b30; }
 
         audio, video { border-radius: 12px; max-width: 100%; margin-top: 5px; }
         #prog-line { height: 4px; background: #adff2f; width: 0%; position: absolute; top: 0; left: 0; z-index: 100; transition: 0.3s; }
@@ -100,13 +104,14 @@
     </div>
 </div>
 
-<div id="call-overlay">
-    <h2 id="call-user-name">اتصال من...</h2>
-    <p id="call-type-label">مكالمة فيديو</p>
-    <div id="remote-video-container"></div>
-    <div style="display:flex;">
-        <button class="call-btn accept-call" id="ansBtn" onclick="answerCall()">✅</button>
-        <button class="call-btn end-call" onclick="endCall()">❌</button>
+<div id="call-screen">
+    <div id="video-container">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <video id="localVideo" autoplay playsinline muted></video>
+        <div class="call-ui-overlay">
+            <button class="c-btn v-accept" id="answerBtn" onclick="acceptCall()">✅</button>
+            <button class="c-btn v-decline" onclick="endCall()">❌</button>
+        </div>
     </div>
 </div>
 
@@ -117,6 +122,8 @@
     
     let user = localStorage.getItem("chat_user") || ""; 
     let exp = "", typingTimeout, mediaRecorder, audioChunks = [];
+    let localStream, peerConn;
+    const rtcConfig = {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]};
 
     function askName() { if(!user) { user = prompt("اسمك:") || "نصرو"; localStorage.setItem("chat_user", user); } }
     function ad(v) { exp=(v==='')?'':exp+v; document.getElementById('display').innerText=exp||"0"; }
@@ -136,105 +143,112 @@
         db.ref("chat").on("child_added", s => {
             let m = s.val();
             let d = document.createElement("div"); d.className = "bubble " + (m.u===user?"me":"other");
-            let html = `<b style="font-size:12px; color:var(--p-dark);">${m.u}</b><br>`;
+            let html = `<b>${m.u}</b><br>`;
             if(m.t==='img') html += `<img src="${m.v}" style="width:100%;">`;
             else if(m.t==='vid') html += `<video controls src="${m.v}" style="width:100%;"></video>`;
             else if(m.t==='audio') html += `<audio controls src="${m.v}"></audio>`;
             else html += m.v;
-            d.innerHTML = html + `<div style="font-size:9px; opacity:0.5; margin-top:5px;">${m.time}</div>`;
+            d.innerHTML = html + `<div style="font-size:9px; opacity:0.5;">${m.time}</div>`;
             document.getElementById("messages").appendChild(d);
             document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
         });
 
         db.ref('typing').on('value', s => {
             let typers = [];
-            s.forEach(child => { if(child.key !== user) typers.push(child.key); });
+            s.forEach(c => { if(c.key !== user) typers.push(c.key); });
             document.getElementById('typing-status').innerText = typers.length ? "✍️ " + typers.join(' و ') + " يكتب..." : "";
         });
 
-        // مراقبة المكالمات الواردة
-        db.ref('calls').on('value', s => {
-            let call = s.val();
-            if(call && call.to === user && call.status === 'ringing') {
-                showCallUI(call.from, call.type, true);
-            } else if (!call) {
-                document.getElementById('call-overlay').style.display = 'none';
+        // مراقبة المكالمات
+        db.ref('calls/' + user).on('value', async s => {
+            let data = s.val();
+            if(data && data.type === 'offer') {
+                document.getElementById('call-screen').style.display = 'flex';
+                document.getElementById('answerBtn').style.display = 'block';
+            } else if (!data) {
+                closeCall();
             }
         });
     }
 
-    function sendMsg() {
-        let v = document.getElementById('mIn').value.trim();
-        if(v) { 
-            db.ref("chat").push({u:user, v:v, t:'txt', time:getTime()});
-            document.getElementById('mIn').value = ""; reportTyping();
-        }
+    async function startCall(mode) {
+        let to = prompt("اسم الشخص؟"); if(!to) return;
+        document.getElementById('call-screen').style.display = 'flex';
+        document.getElementById('answerBtn').style.display = 'none';
+        
+        localStream = await navigator.mediaDevices.getUserMedia({video: mode==='video', audio: true});
+        document.getElementById('localVideo').srcObject = localStream;
+
+        peerConn = new RTCPeerConnection(rtcConfig);
+        localStream.getTracks().forEach(t => peerConn.addTrack(t, localStream));
+
+        peerConn.onicecandidate = e => { if(e.candidate) db.ref('calls/'+to+'/ice').push(e.candidate.toJSON()); };
+        peerConn.ontrack = e => { document.getElementById('remoteVideo').srcObject = e.streams[0]; };
+
+        const offer = await peerConn.createOffer();
+        await peerConn.setLocalDescription(offer);
+        db.ref('calls/'+to).update({type:'offer', offer: offer, from: user});
+
+        db.ref('calls/'+to+'/answer').on('value', async s => {
+            if(s.val()) await peerConn.setRemoteDescription(new RTCSessionDescription(s.val()));
+        });
     }
 
-    // --- ميزة التسجيل الصوتي ---
+    async function acceptCall() {
+        document.getElementById('answerBtn').style.display = 'none';
+        let callData = (await db.ref('calls/'+user).once('value')).val();
+        
+        localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+        document.getElementById('localVideo').srcObject = localStream;
+
+        peerConn = new RTCPeerConnection(rtcConfig);
+        localStream.getTracks().forEach(t => peerConn.addTrack(t, localStream));
+
+        peerConn.onicecandidate = e => { if(e.candidate) db.ref('calls/'+callData.from+'/ice').push(e.candidate.toJSON()); };
+        peerConn.ontrack = e => { document.getElementById('remoteVideo').srcObject = e.streams[0]; };
+
+        await peerConn.setRemoteDescription(new RTCSessionDescription(callData.offer));
+        const answer = await peerConn.createAnswer();
+        await peerConn.setLocalDescription(answer);
+        db.ref('calls/'+callData.from).update({answer: answer});
+    }
+
+    function endCall() { db.ref('calls/'+user).remove(); closeCall(); }
+    function closeCall() { 
+        if(localStream) localStream.getTracks().forEach(t => t.stop());
+        document.getElementById('call-screen').style.display = 'none';
+    }
+
+    function sendMsg() {
+        let v = document.getElementById('mIn').value.trim();
+        if(v) { db.ref("chat").push({u:user, v:v, t:'txt', time:getTime()}); document.getElementById('mIn').value = ""; reportTyping(); }
+    }
+
     async function toggleMic() {
-        const btn = document.getElementById('recBtn');
         if (!mediaRecorder || mediaRecorder.state === "inactive") {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream);
-            audioChunks = [];
+            mediaRecorder = new MediaRecorder(stream); audioChunks = [];
             mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
             mediaRecorder.onstop = () => {
                 const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                const reader = new FileReader();
-                reader.readAsDataURL(blob);
-                reader.onloadend = () => {
-                    db.ref("chat").push({u:user, v:reader.result, t:'audio', time:getTime()});
-                };
+                const r = new FileReader(); r.readAsDataURL(blob);
+                r.onloadend = () => db.ref("chat").push({u:user, v:r.result, t:'audio', time:getTime()});
                 stream.getTracks().forEach(t => t.stop());
             };
-            mediaRecorder.start();
-            btn.classList.add('recording');
-            btn.innerText = "⏹️";
+            mediaRecorder.start(); document.getElementById('recBtn').classList.add('recording');
         } else {
-            mediaRecorder.stop();
-            btn.classList.remove('recording');
-            btn.innerText = "🎤";
+            mediaRecorder.stop(); document.getElementById('recBtn').classList.remove('recording');
         }
-    }
-
-    // --- ميزة المكالمات ---
-    function startCall(type) {
-        let to = prompt("أدخل اسم الشخص الذي تريد الاتصال به:");
-        if(!to) return;
-        db.ref('calls').set({from: user, to: to, type: type, status: 'ringing'});
-        showCallUI(to, type, false);
-    }
-
-    function showCallUI(name, type, incoming) {
-        document.getElementById('call-overlay').style.display = 'flex';
-        document.getElementById('call-user-name').innerText = name;
-        document.getElementById('call-type-label').innerText = type === 'video' ? "مكالمة فيديو جارية..." : "مكالمة صوتية جارية...";
-        document.getElementById('ansBtn').style.display = incoming ? 'block' : 'none';
-    }
-
-    function answerCall() {
-        alert("تم قبول المكالمة! (ملاحظة: الربط الفعلي يحتاج خادم TURN/STUN، حالياً تعمل كإشعار)");
-        db.ref('calls').update({status: 'connected'});
-    }
-
-    function endCall() {
-        db.ref('calls').remove();
-        document.getElementById('call-overlay').style.display = 'none';
     }
 
     function upFile(el, type) {
         let f = el.files[0]; if(!f) return;
         let r = new FileReader();
         r.onprogress = (e) => { if(e.lengthComputable) document.getElementById('prog-line').style.width = (e.loaded/e.total*100) + "%"; };
-        r.onload = (e) => {
-            db.ref("chat").push({u:user, v:e.target.result, t:type, time:getTime()})
-            .then(() => document.getElementById('prog-line').style.width = "0%");
-        };
+        r.onload = (e) => { db.ref("chat").push({u:user, v:e.target.result, t:type, time:getTime()}).then(() => document.getElementById('prog-line').style.width = "0%"); };
         r.readAsDataURL(f);
     }
-
     function getTime() { return new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); }
 </script>
 </body>
-                                                                    </html>
+</html>
