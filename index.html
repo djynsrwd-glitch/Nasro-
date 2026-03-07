@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nasro VIP - Real Calls Fixed</title>
+    <title>Nasro VIP - Full Version Fixed</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -44,7 +44,6 @@
         #recBtn.recording { background: #adff2f; animation: pulse 1s infinite; }
         @keyframes pulse { 0% {transform: scale(1);} 50% {transform: scale(1.1);} 100% {transform: scale(1);} }
 
-        /* واجهة المكالمة المصلحة */
         #call-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
         #video-container { width: 100%; height: 100%; position: relative; display: flex; flex-direction: column; }
         video { width: 100%; height: 100%; object-fit: cover; background: #222; }
@@ -116,7 +115,18 @@
 </div>
 
 <script>
-    const firebaseConfig = { databaseURL: "https://calcchat-b10d1-default-rtdb.firebaseio.com" };
+    // الإعدادات الجديدة الخاصة بك
+    const firebaseConfig = {
+        apiKey: "AIzaSyBAA401qciK1eEzZKpZgD5P7D3rPENtoJA",
+        authDomain: "ndndkk-a876d.firebaseapp.com",
+        databaseURL: "https://ndndkk-a876d-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "ndndkk-a876d",
+        storageBucket: "ndndkk-a876d.firebasestorage.app",
+        messagingSenderId: "578615168170",
+        appId: "1:578615168170:web:b65b54531115f49855d4d3",
+        measurementId: "G-JXT0ND77KS"
+    };
+
     firebase.initializeApp(firebaseConfig);
     const db = firebase.database();
     
@@ -125,7 +135,7 @@
     let localStream, peerConn;
     const rtcConfig = {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]};
 
-    function askName() { if(!user) { user = prompt("اسمك:") || "نصرو"; localStorage.setItem("chat_user", user); } }
+    function askName() { if(!user) { user = prompt("اسمك:") || "DJ Nasro"; localStorage.setItem("chat_user", user); } }
     function ad(v) { exp=(v==='')?'':exp+v; document.getElementById('display').innerText=exp||"0"; }
     function calc() { if(exp==="123332"){document.getElementById('calc-screen').style.display='none'; document.getElementById('chat-ui').style.display='flex'; initChat();} else {try{exp=eval(exp).toString(); document.getElementById('display').innerText=exp;}catch(e){exp='';}}}
 
@@ -159,7 +169,6 @@
             document.getElementById('typing-status').innerText = typers.length ? "✍️ " + typers.join(' و ') + " يكتب..." : "";
         });
 
-        // مراقبة المكالمات
         db.ref('calls/' + user).on('value', async s => {
             let data = s.val();
             if(data && data.type === 'offer') {
@@ -188,25 +197,16 @@
         const offer = await peerConn.createOffer();
         await peerConn.setLocalDescription(offer);
         db.ref('calls/'+to).update({type:'offer', offer: offer, from: user});
-
-        db.ref('calls/'+to+'/answer').on('value', async s => {
-            if(s.val()) await peerConn.setRemoteDescription(new RTCSessionDescription(s.val()));
-        });
     }
 
     async function acceptCall() {
         document.getElementById('answerBtn').style.display = 'none';
         let callData = (await db.ref('calls/'+user).once('value')).val();
-        
         localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
         document.getElementById('localVideo').srcObject = localStream;
-
         peerConn = new RTCPeerConnection(rtcConfig);
         localStream.getTracks().forEach(t => peerConn.addTrack(t, localStream));
-
-        peerConn.onicecandidate = e => { if(e.candidate) db.ref('calls/'+callData.from+'/ice').push(e.candidate.toJSON()); };
         peerConn.ontrack = e => { document.getElementById('remoteVideo').srcObject = e.streams[0]; };
-
         await peerConn.setRemoteDescription(new RTCSessionDescription(callData.offer));
         const answer = await peerConn.createAnswer();
         await peerConn.setLocalDescription(answer);
@@ -251,4 +251,4 @@
     function getTime() { return new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); }
 </script>
 </body>
-</html>
+    </html>
