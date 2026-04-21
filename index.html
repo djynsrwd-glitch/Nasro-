@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Nasro VIP - Full Version Fixed</title>
+    <title>Nasro VIP - Pro Optimized</title>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
@@ -115,7 +115,6 @@
 </div>
 
 <script>
-    // الإعدادات الجديدة الخاصة بك
     const firebaseConfig = {
         apiKey: "AIzaSyBAA401qciK1eEzZKpZgD5P7D3rPENtoJA",
         authDomain: "ndndkk-a876d.firebaseapp.com",
@@ -154,11 +153,11 @@
             let m = s.val();
             let d = document.createElement("div"); d.className = "bubble " + (m.u===user?"me":"other");
             let html = `<b>${m.u}</b><br>`;
-            if(m.t==='img') html += `<img src="${m.v}" style="width:100%;">`;
-            else if(m.t==='vid') html += `<video controls src="${m.v}" style="width:100%;"></video>`;
+            if(m.t==='img') html += `<img src="${m.v}" style="width:100%; border-radius:10px;">`;
+            else if(m.t==='vid') html += `<video controls src="${m.v}" style="width:100%; border-radius:10px;"></video>`;
             else if(m.t==='audio') html += `<audio controls src="${m.v}"></audio>`;
             else html += m.v;
-            d.innerHTML = html + `<div style="font-size:9px; opacity:0.5;">${m.time}</div>`;
+            d.innerHTML = html + `<div style="font-size:9px; opacity:0.5; margin-top:5px;">${m.time}</div>`;
             document.getElementById("messages").appendChild(d);
             document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
         });
@@ -174,29 +173,29 @@
             if(data && data.type === 'offer') {
                 document.getElementById('call-screen').style.display = 'flex';
                 document.getElementById('answerBtn').style.display = 'block';
-            } else if (!data) {
+            } else if (data && data.answer && peerConn) {
+                await peerConn.setRemoteDescription(new RTCSessionDescription(data.answer));
+            } else if (data && data.ice && peerConn) {
+                Object.values(data.ice).forEach(candidate => peerConn.addIceCandidate(new RTCIceCandidate(candidate)));
+            } else if (!data && document.getElementById('call-screen').style.display === 'flex') {
                 closeCall();
             }
         });
     }
 
     async function startCall(mode) {
-        let to = prompt("اسم الشخص؟"); if(!to) return;
+        let to = prompt("اسم الطرف الآخر؟"); if(!to) return;
         document.getElementById('call-screen').style.display = 'flex';
         document.getElementById('answerBtn').style.display = 'none';
-        
         localStream = await navigator.mediaDevices.getUserMedia({video: mode==='video', audio: true});
         document.getElementById('localVideo').srcObject = localStream;
-
         peerConn = new RTCPeerConnection(rtcConfig);
         localStream.getTracks().forEach(t => peerConn.addTrack(t, localStream));
-
         peerConn.onicecandidate = e => { if(e.candidate) db.ref('calls/'+to+'/ice').push(e.candidate.toJSON()); };
         peerConn.ontrack = e => { document.getElementById('remoteVideo').srcObject = e.streams[0]; };
-
         const offer = await peerConn.createOffer();
         await peerConn.setLocalDescription(offer);
-        db.ref('calls/'+to).update({type:'offer', offer: offer, from: user});
+        db.ref('calls/'+to).set({type:'offer', offer: offer, from: user});
     }
 
     async function acceptCall() {
@@ -206,6 +205,7 @@
         document.getElementById('localVideo').srcObject = localStream;
         peerConn = new RTCPeerConnection(rtcConfig);
         localStream.getTracks().forEach(t => peerConn.addTrack(t, localStream));
+        peerConn.onicecandidate = e => { if(e.candidate) db.ref('calls/'+callData.from+'/ice').push(e.candidate.toJSON()); };
         peerConn.ontrack = e => { document.getElementById('remoteVideo').srcObject = e.streams[0]; };
         await peerConn.setRemoteDescription(new RTCSessionDescription(callData.offer));
         const answer = await peerConn.createAnswer();
@@ -241,14 +241,38 @@
         }
     }
 
+    // وظيفة محسنة لرفع الملفات الكبيرة (حتى 30 ميجا أو أكثر)
     function upFile(el, type) {
         let f = el.files[0]; if(!f) return;
+        // تنبيه المستخدم إذا كان الملف كبيراً جداً ليصبر على الرفع
+        if(f.size > 10 * 1024 * 1024) alert("الملف كبير، قد يستغرق الرفع بضع ثوانٍ حسب سرعة الإنترنت لديك.");
+        
         let r = new FileReader();
-        r.onprogress = (e) => { if(e.lengthComputable) document.getElementById('prog-line').style.width = (e.loaded/e.total*100) + "%"; };
-        r.onload = (e) => { db.ref("chat").push({u:user, v:e.target.result, t:type, time:getTime()}).then(() => document.getElementById('prog-line').style.width = "0%"); };
+        r.onprogress = (e) => { 
+            if(e.lengthComputable) {
+                let percent = Math.round((e.loaded / e.total) * 100);
+                document.getElementById('prog-line').style.width = percent + "%";
+            } 
+        };
+        r.onload = (e) => { 
+            db.ref("chat").push({
+                u: user, 
+                v: e.target.result, 
+                t: type, 
+                time: getTime()
+            }).then(() => {
+                document.getElementById('prog-line').style.width = "0%";
+                el.value = ""; // تفريغ المدخل لرفع ملف آخر
+            }).catch(err => {
+                alert("فشل الرفع: قد يكون حجم الملف أكبر من المسموح به في Firebase Realtime Database.");
+                document.getElementById('prog-line').style.width = "0%";
+            });
+        };
         r.readAsDataURL(f);
     }
+
     function getTime() { return new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); }
 </script>
 </body>
     </html>
+    
