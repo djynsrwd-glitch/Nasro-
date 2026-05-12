@@ -7,55 +7,74 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
     <style>
-        :root { --p-dark: #ff1f4b; --p-mid: #ff4d6d; --bg-glass: rgba(0, 0, 0, 0.85); }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; -webkit-tap-highlight-color: transparent; }
+        :root { 
+            --p-dark: #ff1f4b; 
+            --p-mid: #ff4d6d; 
+            --bg-glass: rgba(0, 0, 0, 0.85); 
+            --me-bg: #25d366;
+            --other-bg: #262626;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; -webkit-tap-highlight-color: transparent; }
         body { background: #000; overflow: hidden; height: 100vh; color: white; }
 
         /* الحاسبة */
-        #calc-screen { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100vh; padding-bottom: 50px; background: #000; position: relative; z-index: 100; }
-        #display { width: 100%; max-width: 350px; text-align: right; font-size: 80px; color: white; padding: 0 30px; }
+        #calc-screen { display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100vh; padding-bottom: 50px; background: #000; position: relative; z-index: 1000; transition: 0.5s; }
+        #display { width: 100%; max-width: 350px; text-align: right; font-size: 80px; color: white; padding: 0 30px; min-height: 100px; }
         .buttons { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; width: 100%; max-width: 350px; padding: 10px; }
-        .btn { height: 75px; width: 75px; border-radius: 50%; border: none; font-size: 30px; color: white; background: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .orange { background: #ff9f0a; } .gray { background: #a5a5a5; color: black; }
+        .btn { height: 75px; width: 75px; border-radius: 50%; border: none; font-size: 30px; color: white; background: #333; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.2s; }
+        .btn:active { transform: scale(0.9); background: #555; }
+        .orange { background: #ff9f0a; } 
+        .gray { background: #a5a5a5; color: black; }
         .zero { width: 162px; border-radius: 40px; justify-content: flex-start; padding-left: 30px; grid-column: span 2; }
 
         /* الدردشة */
-        #chat-ui { display: none; height: 100vh; flex-direction: column; position: relative; background: #000; }
-        #layer-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('https://image2url.com/r2/default/images/1770449811893-f461bec6-24f2-48fd-b92b-59a5ba56bf71.jpg'); background-size: cover; background-position: center; z-index: 0; filter: brightness(0.5); }
+        #chat-ui { display: none; height: 100vh; flex-direction: column; position: relative; background: #0e0e0e; }
+        #layer-bg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background-image: url('https://image2url.com/r2/default/images/1770449811893-f461bec6-24f2-48fd-b92b-59a5ba56bf71.jpg'); background-size: cover; background-position: center; z-index: 0; filter: brightness(0.4); }
         
-        .header { background: var(--bg-glass); padding: 15px; display: flex; justify-content: space-between; align-items: center; z-index: 10; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .header { background: var(--bg-glass); padding: 15px; display: flex; justify-content: space-between; align-items: center; z-index: 10; border-bottom: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); }
         .header-title { text-align: center; flex: 1; }
-        #typing-status { font-size: 13px; color: #adff2f; font-weight: bold; height: 18px; }
+        #typing-status { font-size: 13px; color: #adff2f; font-weight: bold; height: 18px; text-shadow: 0 0 5px rgba(173, 255, 47, 0.5); }
 
-        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; z-index: 2; }
-        .bubble { padding: 12px 18px; border-radius: 20px; max-width: 80%; position: relative; box-shadow: 0 4px 12px rgba(0,0,0,0.4); line-height: 1.5; background: #fff; color: #000; }
-        .me { align-self: flex-end; border-bottom-right-radius: 2px; background: #dcf8c6; }
-        .other { align-self: flex-start; border-bottom-left-radius: 2px; }
+        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; z-index: 2; scroll-behavior: smooth; }
+        .bubble { padding: 10px 15px; border-radius: 18px; max-width: 85%; position: relative; box-shadow: 0 2px 5px rgba(0,0,0,0.3); line-height: 1.4; animation: fadeIn 0.3s ease; word-wrap: break-word; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .me { align-self: flex-end; background: var(--me-bg); color: white; border-bottom-right-radius: 4px; }
+        .other { align-self: flex-start; background: var(--other-bg); color: white; border-bottom-left-radius: 4px; }
 
-        .footer { background: rgba(0, 0, 0, 0.95); padding: 12px; z-index: 10; }
+        .footer { background: rgba(0, 0, 0, 0.9); padding: 12px; z-index: 10; backdrop-filter: blur(10px); }
         .input-area { display: flex; align-items: center; gap: 10px; width: 100%; }
-        .input-box { flex: 1; background: rgba(255,255,255,0.15); border-radius: 25px; height: 48px; display: flex; align-items: center; padding: 0 15px; border: 1px solid rgba(255,255,255,0.2); }
+        .input-box { flex: 1; background: rgba(255,255,255,0.1); border-radius: 25px; height: 45px; display: flex; align-items: center; padding: 0 15px; border: 1px solid rgba(255,255,255,0.1); }
         .input-box input { flex: 1; border: none; outline: none; background: transparent; color: white; font-size: 16px; }
         
-        .bottom-icons { display: flex; gap: 12px; align-items: center; }
-        .icon-item { font-size: 24px; cursor: pointer; }
+        .bottom-icons { display: flex; gap: 15px; align-items: center; }
+        .icon-item { font-size: 22px; cursor: pointer; transition: 0.2s; }
+        .icon-item:hover { transform: scale(1.1); }
 
-        #sendBtn, #recBtn { background: var(--p-dark); color: white; width: 45px; height: 45px; border-radius: 50%; border: none; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; }
-        #recBtn.recording { background: #adff2f; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% {transform: scale(1);} 50% {transform: scale(1.1);} 100% {transform: scale(1);} }
+        #sendBtn, #recBtn { background: var(--p-dark); color: white; width: 45px; height: 45px; border-radius: 50%; border: none; font-size: 20px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 10px rgba(255, 31, 75, 0.3); }
+        #recBtn.recording { background: #ff3b30; animation: pulse 1s infinite; }
+        @keyframes pulse { 0% {transform: scale(1);} 50% {transform: scale(1.1); box-shadow: 0 0 20px #ff3b30;} 100% {transform: scale(1);} }
 
-        #call-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 1000; flex-direction: column; align-items: center; justify-content: center; }
-        #video-container { width: 100%; height: 100%; position: relative; display: flex; flex-direction: column; }
-        video { width: 100%; height: 100%; object-fit: cover; background: #222; }
-        #localVideo { width: 120px; height: 160px; position: absolute; top: 20px; right: 20px; border: 2px solid #fff; border-radius: 10px; z-index: 1010; transform: scaleX(-1); }
-        #remoteVideo { flex: 1; width: 100%; height: 100%; background: #111; }
+        /* شاشة المكالمة المحترفة */
+        #call-screen { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #1a1a1a; z-index: 2000; flex-direction: column; }
+        #video-container { width: 100%; height: 100%; position: relative; }
+        #remoteVideo { width: 100%; height: 100%; object-fit: cover; background: #000; }
+        #localVideo { width: 100px; height: 150px; position: absolute; top: 30px; right: 20px; border: 2px solid rgba(255,255,255,0.5); border-radius: 12px; z-index: 2010; transform: scaleX(-1); object-fit: cover; }
         
-        .call-ui-overlay { position: absolute; bottom: 50px; width: 100%; display: flex; justify-content: center; gap: 30px; z-index: 1020; }
-        .c-btn { width: 70px; height: 70px; border-radius: 50%; border: none; font-size: 30px; cursor: pointer; color: white; }
-        .v-accept { background: #4cd964; } .v-decline { background: #ff3b30; }
+        .call-info { position: absolute; top: 100px; width: 100%; text-align: center; z-index: 2020; text-shadow: 0 2px 10px rgba(0,0,0,0.8); }
+        .call-info h2 { font-size: 28px; margin-bottom: 10px; }
+        
+        .call-ui-overlay { position: absolute; bottom: 60px; width: 100%; display: flex; justify-content: center; gap: 40px; z-index: 2030; }
+        .c-btn { width: 65px; height: 65px; border-radius: 50%; border: none; font-size: 28px; cursor: pointer; color: white; display: flex; align-items: center; justify-content: center; transition: 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .v-accept { background: #4cd964; animation: bounce 1.5s infinite; }
+        .v-decline { background: #ff3b30; }
+        @keyframes bounce { 0%, 100% {transform: translateY(0);} 50% {transform: translateY(-10px);} }
 
-        audio, video { border-radius: 12px; max-width: 100%; margin-top: 5px; }
-        #prog-line { height: 4px; background: #adff2f; width: 0%; position: absolute; top: 0; left: 0; z-index: 100; transition: 0.3s; }
+        #prog-line { height: 3px; background: var(--p-dark); width: 0%; position: absolute; top: 0; left: 0; z-index: 100; transition: 0.3s; }
+        
+        /* تحسينات الوسائط في الدردشة */
+        audio { height: 35px; width: 200px; }
+        img, video { border-radius: 12px; max-width: 100%; display: block; margin-top: 5px; }
     </style>
 </head>
 <body onload="askName()">
@@ -75,9 +94,9 @@
     <div id="prog-line"></div>
     <div id="layer-bg"></div>
     <div class="header">
-        <span onclick="if(confirm('مسح الكل؟')) db.ref('chat').remove()" style="cursor:pointer; font-size:24px;">🗑️</span>
+        <span onclick="if(confirm('هل تريد مسح جميع الرسائل؟')) db.ref('chat').remove()" style="cursor:pointer; font-size:22px;">🗑️</span>
         <div class="header-title">
-            <div style="font-weight:bold; font-size:18px;">Nasro VIP Pro</div>
+            <div style="font-weight:bold; font-size:18px; letter-spacing: 1px;">Nasro VIP Pro</div>
             <div id="typing-status"></div>
         </div>
         <div class="bottom-icons">
@@ -91,7 +110,7 @@
     <div class="footer">
         <div class="input-area">
             <div class="input-box">
-                <input type="text" id="mIn" placeholder="اكتب هنا..." oninput="reportTyping()">
+                <input type="text" id="mIn" placeholder="اكتب رسالة..." oninput="reportTyping()" onkeypress="if(event.key==='Enter') sendMsg()">
             </div>
             <div class="bottom-icons" id="iconGroup">
                 <label class="icon-item">🎬<input type="file" accept="video/*" hidden onchange="upFile(this,'vid')"></label>
@@ -104,6 +123,10 @@
 </div>
 
 <div id="call-screen">
+    <div class="call-info">
+        <h2 id="caller-name">اتصال...</h2>
+        <p id="call-status">جاري الربط</p>
+    </div>
     <div id="video-container">
         <video id="remoteVideo" autoplay playsinline></video>
         <video id="localVideo" autoplay playsinline muted></video>
@@ -115,6 +138,7 @@
 </div>
 
 <script>
+    // تكوين Firebase الخاص بك
     const firebaseConfig = {
         apiKey: "AIzaSyBAA401qciK1eEzZKpZgD5P7D3rPENtoJA",
         authDomain: "ndndkk-a876d.firebaseapp.com",
@@ -134,9 +158,25 @@
     let localStream, peerConn;
     const rtcConfig = {'iceServers': [{'urls': 'stun:stun.l.google.com:19302'}]};
 
-    function askName() { if(!user) { user = prompt("اسمك:") || "DJ Nasro"; localStorage.setItem("chat_user", user); } }
-    function ad(v) { exp=(v==='')?'':exp+v; document.getElementById('display').innerText=exp||"0"; }
-    function calc() { if(exp==="123332"){document.getElementById('calc-screen').style.display='none'; document.getElementById('chat-ui').style.display='flex'; initChat();} else {try{exp=eval(exp).toString(); document.getElementById('display').innerText=exp;}catch(e){exp='';}}}
+    function askName() { if(!user) { user = prompt("أدخل اسمك المستعار للدخول:") || "مستخدم جديد"; localStorage.setItem("chat_user", user); } }
+    
+    function ad(v) { 
+        exp = (v === '') ? '' : exp + v; 
+        document.getElementById('display').innerText = exp || "0"; 
+    }
+
+    function calc() { 
+        if(exp === "123332") { // الكود السري للدخول
+            document.getElementById('calc-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('calc-screen').style.display = 'none';
+                document.getElementById('chat-ui').style.display = 'flex';
+                initChat();
+            }, 500);
+        } else {
+            try { exp = eval(exp).toString(); document.getElementById('display').innerText = exp; } catch(e) { exp = ''; }
+        }
+    }
 
     function reportTyping() {
         let val = document.getElementById('mIn').value.trim();
@@ -145,107 +185,156 @@
         document.getElementById('iconGroup').style.display = val ? 'none' : 'flex';
         db.ref('typing/' + user).set(true);
         clearTimeout(typingTimeout);
-        typingTimeout = setTimeout(() => db.ref('typing/' + user).remove(), 3000);
+        typingTimeout = setTimeout(() => db.ref('typing/' + user).remove(), 2000);
     }
 
     function initChat() {
-        db.ref("chat").on("child_added", s => {
+        // الاستماع للرسائل
+        db.ref("chat").limitToLast(50).on("child_added", s => {
             let m = s.val();
-            let d = document.createElement("div"); d.className = "bubble " + (m.u===user?"me":"other");
-            let html = `<b>${m.u}</b><br>`;
-            if(m.t==='img') html += `<img src="${m.v}" style="width:100%; border-radius:10px;">`;
-            else if(m.t==='vid') html += `<video controls src="${m.v}" style="width:100%; border-radius:10px;"></video>`;
+            let d = document.createElement("div"); 
+            d.className = "bubble " + (m.u === user ? "me" : "other");
+            let html = `<b style="font-size:12px; color: ${m.u===user?'#fff':'#ff1f4b'}">${m.u}</b><br>`;
+            if(m.t==='img') html += `<img src="${m.v}" onclick="window.open(this.src)">`;
+            else if(m.t==='vid') html += `<video controls src="${m.v}"></video>`;
             else if(m.t==='audio') html += `<audio controls src="${m.v}"></audio>`;
             else html += m.v;
-            d.innerHTML = html + `<div style="font-size:9px; opacity:0.5; margin-top:5px;">${m.time}</div>`;
+            d.innerHTML = html + `<div style="font-size:9px; opacity:0.7; text-align:left; margin-top:5px;">${m.time}</div>`;
             document.getElementById("messages").appendChild(d);
             document.getElementById("messages").scrollTop = document.getElementById("messages").scrollHeight;
         });
 
+        // حالة الكتابة
         db.ref('typing').on('value', s => {
             let typers = [];
             s.forEach(c => { if(c.key !== user) typers.push(c.key); });
-            document.getElementById('typing-status').innerText = typers.length ? "✍️ " + typers.join(' و ') + " يكتب..." : "";
+            document.getElementById('typing-status').innerText = typers.length ? "✍️ " + typers.join(' و ') + " يكتب الآن..." : "";
         });
 
+        // الاستماع للمكالمات الواردة
         db.ref('calls/' + user).on('value', async s => {
             let data = s.val();
-            if(data && data.type === 'offer') {
+            if(!data) return;
+
+            if(data.type === 'offer') {
+                document.getElementById('caller-name').innerText = data.from;
+                document.getElementById('call-status').innerText = "مكالمة واردة...";
                 document.getElementById('call-screen').style.display = 'flex';
-                document.getElementById('answerBtn').style.display = 'block';
-            } else if (data && data.answer && peerConn) {
+                document.getElementById('answerBtn').style.display = 'flex';
+            } else if (data.answer && peerConn) {
                 await peerConn.setRemoteDescription(new RTCSessionDescription(data.answer));
-            } else if (data && data.ice && peerConn) {
-                Object.values(data.ice).forEach(candidate => peerConn.addIceCandidate(new RTCIceCandidate(candidate)));
-            } else if (!data && document.getElementById('call-screen').style.display === 'flex') {
-                closeCall();
+            } else if (data.ice && peerConn) {
+                db.ref('calls/' + user + '/ice').once('value', snapshot => {
+                    snapshot.forEach(c => {
+                        peerConn.addIceCandidate(new RTCIceCandidate(c.val())).catch(e => {});
+                    });
+                });
             }
         });
     }
 
+    // منطق الاتصال المحسن
     async function startCall(mode) {
-        let to = prompt("اسم الطرف الآخر؟"); if(!to) return;
+        let to = prompt("أدخل اسم الشخص الذي تريد الاتصال به:"); 
+        if(!to) return;
+        
+        document.getElementById('caller-name').innerText = to;
+        document.getElementById('call-status').innerText = "جاري الاتصال...";
         document.getElementById('call-screen').style.display = 'flex';
         document.getElementById('answerBtn').style.display = 'none';
+
         localStream = await navigator.mediaDevices.getUserMedia({video: mode==='video', audio: true});
         document.getElementById('localVideo').srcObject = localStream;
+
         peerConn = new RTCPeerConnection(rtcConfig);
         localStream.getTracks().forEach(t => peerConn.addTrack(t, localStream));
-        peerConn.onicecandidate = e => { if(e.candidate) db.ref('calls/'+to+'/ice').push(e.candidate.toJSON()); };
-        peerConn.ontrack = e => { document.getElementById('remoteVideo').srcObject = e.streams[0]; };
+
+        peerConn.onicecandidate = e => { 
+            if(e.candidate) db.ref('calls/' + to + '/ice').push(e.candidate.toJSON()); 
+        };
+        peerConn.ontrack = e => { 
+            document.getElementById('remoteVideo').srcObject = e.streams[0];
+            document.getElementById('call-status').innerText = "متصل";
+        };
+
         const offer = await peerConn.createOffer();
         await peerConn.setLocalDescription(offer);
-        db.ref('calls/'+to).set({type:'offer', offer: offer, from: user});
+        db.ref('calls/' + to).set({type:'offer', offer: offer, from: user, mode: mode});
     }
 
     async function acceptCall() {
         document.getElementById('answerBtn').style.display = 'none';
-        let callData = (await db.ref('calls/'+user).once('value')).val();
-        localStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+        document.getElementById('call-status').innerText = "جاري الربط...";
+        
+        let snap = await db.ref('calls/' + user).once('value');
+        let callData = snap.val();
+        
+        localStream = await navigator.mediaDevices.getUserMedia({video: callData.mode === 'video', audio: true});
         document.getElementById('localVideo').srcObject = localStream;
+
         peerConn = new RTCPeerConnection(rtcConfig);
         localStream.getTracks().forEach(t => peerConn.addTrack(t, localStream));
-        peerConn.onicecandidate = e => { if(e.candidate) db.ref('calls/'+callData.from+'/ice').push(e.candidate.toJSON()); };
-        peerConn.ontrack = e => { document.getElementById('remoteVideo').srcObject = e.streams[0]; };
+
+        peerConn.onicecandidate = e => { 
+            if(e.candidate) db.ref('calls/' + callData.from + '/ice').push(e.candidate.toJSON()); 
+        };
+        peerConn.ontrack = e => { 
+            document.getElementById('remoteVideo').srcObject = e.streams[0];
+            document.getElementById('call-status').innerText = "متصل";
+        };
+
         await peerConn.setRemoteDescription(new RTCSessionDescription(callData.offer));
         const answer = await peerConn.createAnswer();
         await peerConn.setLocalDescription(answer);
-        db.ref('calls/'+callData.from).update({answer: answer});
+        db.ref('calls/' + callData.from).update({answer: answer});
     }
 
-    function endCall() { db.ref('calls/'+user).remove(); closeCall(); }
+    function endCall() { 
+        db.ref('calls/' + user).remove(); 
+        closeCall(); 
+    }
+
     function closeCall() { 
         if(localStream) localStream.getTracks().forEach(t => t.stop());
+        if(peerConn) peerConn.close();
         document.getElementById('call-screen').style.display = 'none';
+        document.getElementById('remoteVideo').srcObject = null;
     }
 
     function sendMsg() {
         let v = document.getElementById('mIn').value.trim();
-        if(v) { db.ref("chat").push({u:user, v:v, t:'txt', time:getTime()}); document.getElementById('mIn').value = ""; reportTyping(); }
+        if(v) { 
+            db.ref("chat").push({u:user, v:v, t:'txt', time:getTime()}); 
+            document.getElementById('mIn').value = ""; 
+            reportTyping(); 
+        }
     }
 
     async function toggleMic() {
         if (!mediaRecorder || mediaRecorder.state === "inactive") {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            mediaRecorder = new MediaRecorder(stream); audioChunks = [];
-            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                const r = new FileReader(); r.readAsDataURL(blob);
-                r.onloadend = () => db.ref("chat").push({u:user, v:r.result, t:'audio', time:getTime()});
-                stream.getTracks().forEach(t => t.stop());
-            };
-            mediaRecorder.start(); document.getElementById('recBtn').classList.add('recording');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream); 
+                audioChunks = [];
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const r = new FileReader(); r.readAsDataURL(blob);
+                    r.onloadend = () => db.ref("chat").push({u:user, v:r.result, t:'audio', time:getTime()});
+                    stream.getTracks().forEach(t => t.stop());
+                };
+                mediaRecorder.start(); 
+                document.getElementById('recBtn').classList.add('recording');
+            } catch(e) { alert("يرجى السماح بالوصول للميكروفون"); }
         } else {
-            mediaRecorder.stop(); document.getElementById('recBtn').classList.remove('recording');
+            mediaRecorder.stop(); 
+            document.getElementById('recBtn').classList.remove('recording');
         }
     }
 
-    // وظيفة محسنة لرفع الملفات الكبيرة (حتى 30 ميجا أو أكثر)
     function upFile(el, type) {
         let f = el.files[0]; if(!f) return;
-        // تنبيه المستخدم إذا كان الملف كبيراً جداً ليصبر على الرفع
-        if(f.size > 10 * 1024 * 1024) alert("الملف كبير، قد يستغرق الرفع بضع ثوانٍ حسب سرعة الإنترنت لديك.");
+        if(f.size > 20 * 1024 * 1024) { alert("الملف كبير جداً (الأقصى 20 ميجا)"); return; }
         
         let r = new FileReader();
         r.onprogress = (e) => { 
@@ -255,24 +344,15 @@
             } 
         };
         r.onload = (e) => { 
-            db.ref("chat").push({
-                u: user, 
-                v: e.target.result, 
-                t: type, 
-                time: getTime()
-            }).then(() => {
-                document.getElementById('prog-line').style.width = "0%";
-                el.value = ""; // تفريغ المدخل لرفع ملف آخر
-            }).catch(err => {
-                alert("فشل الرفع: قد يكون حجم الملف أكبر من المسموح به في Firebase Realtime Database.");
-                document.getElementById('prog-line').style.width = "0%";
-            });
+            db.ref("chat").push({ u: user, v: e.target.result, t: type, time: getTime() })
+            .then(() => { document.getElementById('prog-line').style.width = "0%"; el.value = ""; });
         };
         r.readAsDataURL(f);
     }
 
-    function getTime() { return new Date().toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'}); }
+    function getTime() { 
+        return new Date().toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'}); 
+    }
 </script>
 </body>
-    </html>
-    
+</html>
